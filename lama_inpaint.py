@@ -22,21 +22,22 @@ from saicinpainting.evaluation.data import pad_tensor_to_modulo
 
 from utils import load_img_to_array, save_array_to_img
 
+model = None
 
-@torch.no_grad()
 def inpaint_img_with_lama(
-        img: np.ndarray,
-        mask: np.ndarray,
+        img: torch.Tensor,
+        mask: torch.Tensor,
         config_p: str,
         ckpt_p: str,
         mod=8,
         device="cuda"
 ):
+    global model
     assert len(mask.shape) == 2
-    if np.max(mask) == 1:
-        mask = mask * 255
-    img = torch.from_numpy(img).float().div(255.)
-    mask = torch.from_numpy(mask).float()
+    # if np.max(mask) == 1:
+    #     mask = mask * 255
+    # img = torch.from_numpy(img).float().div(255.)
+    # mask = torch.from_numpy(mask).float()
     predict_config = OmegaConf.load(config_p)
     predict_config.model.path = ckpt_p
     # device = torch.device(predict_config.device)
@@ -51,15 +52,16 @@ def inpaint_img_with_lama(
     train_config.training_model.predict_only = True
     train_config.visualizer.kind = 'noop'
 
-    checkpoint_path = os.path.join(
-        predict_config.model.path, 'models',
-        predict_config.model.checkpoint
-    )
-    model = load_checkpoint(
-        train_config, checkpoint_path, strict=False, map_location='cpu')
-    model.freeze()
-    if not predict_config.get('refine', False):
-        model.to(device)
+    if model is None:
+        checkpoint_path = os.path.join(
+            predict_config.model.path, 'models',
+            predict_config.model.checkpoint
+        )
+        model = load_checkpoint(
+            train_config, checkpoint_path, strict=False, map_location='cpu')
+        model.freeze()
+        if not predict_config.get('refine', False):
+            model.to(device)
 
     batch = {}
     batch['image'] = img.permute(2, 0, 1).unsqueeze(0)
@@ -72,14 +74,18 @@ def inpaint_img_with_lama(
 
     batch = model(batch)
     cur_res = batch[predict_config.out_key][0].permute(1, 2, 0)
-    cur_res = cur_res.detach().cpu().numpy()
-
     if unpad_to_size is not None:
         orig_height, orig_width = unpad_to_size
         cur_res = cur_res[:orig_height, :orig_width]
-
-    cur_res = np.clip(cur_res * 255, 0, 255).astype('uint8')
     return cur_res
+    # cur_res = cur_res.detach().cpu().numpy()
+    #
+    # if unpad_to_size is not None:
+    #     orig_height, orig_width = unpad_to_size
+    #     cur_res = cur_res[:orig_height, :orig_width]
+    #
+    # cur_res = np.clip(cur_res * 255, 0, 255).astype('uint8')
+    # return cur_res
 
 
 def build_lama_model(        

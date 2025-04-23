@@ -34,25 +34,26 @@ def inpaint_img_with_lama(
 ):
     global model
     assert len(mask.shape) == 2
-    # if np.max(mask) == 1:
-    #     mask = mask * 255
-    # img = torch.from_numpy(img).float().div(255.)
-    # mask = torch.from_numpy(mask).float()
-    predict_config = OmegaConf.load(config_p)
-    predict_config.model.path = ckpt_p
-    # device = torch.device(predict_config.device)
-    device = torch.device(device)
-
-    train_config_path = os.path.join(
-        predict_config.model.path, 'config.yaml')
-
-    with open(train_config_path, 'r') as f:
-        train_config = OmegaConf.create(yaml.safe_load(f))
-
-    train_config.training_model.predict_only = True
-    train_config.visualizer.kind = 'noop'
 
     if model is None:
+        # if np.max(mask) == 1:
+        #     mask = mask * 255
+        # img = torch.from_numpy(img).float().div(255.)
+        # mask = torch.from_numpy(mask).float()
+        predict_config = OmegaConf.load(config_p)
+        predict_config.model.path = ckpt_p
+        # device = torch.device(predict_config.device)
+        device = torch.device(device)
+
+        train_config_path = os.path.join(
+            predict_config.model.path, 'config.yaml')
+
+        with open(train_config_path, 'r') as f:
+            train_config = OmegaConf.create(yaml.safe_load(f))
+
+        train_config.training_model.predict_only = True
+        train_config.visualizer.kind = 'noop'
+
         checkpoint_path = os.path.join(
             predict_config.model.path, 'models',
             predict_config.model.checkpoint

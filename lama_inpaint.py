@@ -23,6 +23,7 @@ from saicinpainting.evaluation.data import pad_tensor_to_modulo
 from utils import load_img_to_array, save_array_to_img
 
 model = None
+model_out_key = None
 
 def inpaint_img_with_lama(
         img: torch.Tensor,
@@ -32,7 +33,7 @@ def inpaint_img_with_lama(
         mod=8,
         device="cuda"
 ):
-    global model
+    global model, model_out_key
     assert len(mask.shape) == 2
 
     if model is None:
@@ -45,8 +46,7 @@ def inpaint_img_with_lama(
         # device = torch.device(predict_config.device)
         device = torch.device(device)
 
-        train_config_path = os.path.join(
-            predict_config.model.path, 'config.yaml')
+        train_config_path = os.path.join(predict_config.model.path, 'config.yaml')
 
         with open(train_config_path, 'r') as f:
             train_config = OmegaConf.create(yaml.safe_load(f))
@@ -64,6 +64,8 @@ def inpaint_img_with_lama(
         if not predict_config.get('refine', False):
             model.to(device)
 
+        model_out_key = predict_config.out_key
+
     batch = {}
     batch['image'] = img.permute(2, 0, 1).unsqueeze(0)
     batch['mask'] = mask[None, None]
@@ -74,7 +76,7 @@ def inpaint_img_with_lama(
     batch['mask'] = (batch['mask'] > 0) * 1
 
     batch = model(batch)
-    cur_res = batch[predict_config.out_key][0].permute(1, 2, 0)
+    cur_res = batch[model_out_key][0].permute(1, 2, 0)
     if unpad_to_size is not None:
         orig_height, orig_width = unpad_to_size
         cur_res = cur_res[:orig_height, :orig_width]
